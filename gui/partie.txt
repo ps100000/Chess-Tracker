@@ -1,0 +1,12 @@
+d2-d4
+d7-d5
+Dd1-d3
+Dd8-d6
+h2-h4
+Sb8-c6
+h4-h5
+Sc6xd4
+h5-h6
+Sd4xc2+
+Ke1-d1
+Sc2xa1
