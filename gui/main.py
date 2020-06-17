@@ -19,7 +19,7 @@ import re
 if __name__ == '__main__':
 
     board = chess.Board()
-    # engine = chess.engine.SimpleEngine.popen_uci("C:/Users/Gerst/Desktop/stockfish-11-win/Windows/stockfish_20011801_x64")
+    engine = chess.engine.SimpleEngine.popen_uci("C:/Users/Gerst/Desktop/stockfish-11-win/Windows/stockfish_20011801_x64")
 
     if os.path.exists(sys.argv[1]):
         file = open(sys.argv[1], 'r')
@@ -31,7 +31,7 @@ if __name__ == '__main__':
             # regex start and end of a move and gives the tuple eg. (c2, c4)
             move = ''.join(move_tuple)
             # gives a uci chess string, eg. c2c4
-            # score_before = engine.analyse(board, chess.engine.Limit(time=0.2))['score']
+            score_before = engine.analyse(board, chess.engine.Limit(time=0.2))['score']
             move = chess.Move.from_uci(move)
 
             if not board.is_legal(move):
@@ -43,22 +43,21 @@ if __name__ == '__main__':
             board.push(move)
             LOG.info(f'{board}\n')
 
-            # Lass die score anhand desjenigen bestimmen, für den sie gemacht ist chess.engine.PovScore(score_after, chess.Color)
-            # score_after = engine.analyse(board, chess.engine.Limit(time=0.2))['score']
-            # score = int(str(score_after)) - int(str(score_before))
-            # if score > 0:
-            #     LOG.info(f"This move was good. It raised your score about {score}")
-            # if score < 0:
-            #     LOG.info(f"This move was bad. It lowered your score about {score}")
+            # TODO define score from player, chess.engine.PovScore(score_after, chess.Color)
+            score_after = engine.analyse(board, chess.engine.Limit(time=0.2))['score']
+            score = int(str(score_after)) - int(str(score_before))
+            if score > 0:
+                LOG.info(f"This move was good. It raised your score about {score}")
+            if score < 0:
+                LOG.info(f"This move was bad. It lowered your score about {score}")
 
             if (board.is_check()):
                 LOG.info('Check')
 
             if (board.is_checkmate()):
-                print('Checkmate\n')
                 LOG.info(f'Checkmate\n{board.result}')
                 break
             input('Press Enter to continue...\n')
         file.close
 
-    # engine.quit()
+    engine.quit()
