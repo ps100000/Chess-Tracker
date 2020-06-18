@@ -1,6 +1,7 @@
 #ifndef _MOVE_ANALYSIS_H_
 #define _MOVE_ANALYSIS_H_
 /*----------includes----------*/
+#include <stdio.h>
 /*----------------------------*/
 /*----------macros----------*/
 #define LOGLINE_BUF_SIZE    10
@@ -15,8 +16,7 @@ typedef enum field_state_change
 } field_state_change_t;
 /*---------------------------*/
 /*----------functions----------*/
-char isCastling(field_state_change_t state[8][8], char notationString[7]);
+void isCastling(field_state_change_t state[8][8], char* const notationString, char completeField[8][8]);
 void analyse_move(field_state_change_t stateChange[8][8], char* logline_buf);
-void isCheck(field_state_change_t state[8][8]);
 /*-----------------------------*/
 #endif
