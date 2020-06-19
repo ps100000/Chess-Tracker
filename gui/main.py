@@ -171,7 +171,11 @@ if __name__ == '__main__':
 
     board = chess.Board()
     LOG.debug(f'START\n{board}\n\n')
-    engine = chess.engine.SimpleEngine.popen_uci('C:/Users/Gerst/Desktop/Schulprojekt/stockfish-11-win/stockfish-11-win/Windows/stockfish_20011801_x64')
+    filename = sg.PopupGetFile('\n'.join(('To begin, set location of AI EXE file',
+                                          'If you have not done so already, download the engine',
+                                          'Download the StockFish Chess engine at: https://stockfishchess.org/download/')),
+                               file_types=(('Chess AI Engine EXE File', '*.exe'),))
+    engine = chess.engine.SimpleEngine.popen_uci(filename)
 
     contents = open(sys.argv[1], 'r').read()
     psg_board, window = create_gui(board)
