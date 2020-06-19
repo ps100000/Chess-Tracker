@@ -67,10 +67,14 @@ void timer()
 
         now = XTHAL_GET_CCOUNT();
 
-        if (cctMarker <= now)
-            exactlyTimeInMS = (((now - cctMarker)+CCT_TICKS_PER_US/2)/CCT_TICKS_PER_US)/1000;
-        else
-            exactlyTimeInMS = ((now + (0xFFFFFFFF - cctMarker) + CCT_TICKS_PER_US/2)/CCT_TICKS_PER_US)/1000;
+        exactlyTimeInMS = (cctMarker <= now ?
+            (((now - cctMarker)+CCT_TICKS_PER_US/2)/CCT_TICKS_PER_US)/1000 :
+            ((now + (0xFFFFFFFF - cctMarker) + CCT_TICKS_PER_US/2)/CCT_TICKS_PER_US))/1000;
+
+        // if (cctMarker <= now)
+        //     exactlyTimeInMS = (((now - cctMarker)+CCT_TICKS_PER_US/2)/CCT_TICKS_PER_US)/1000;
+        // else
+        //     exactlyTimeInMS = ((now + (0xFFFFFFFF - cctMarker) + CCT_TICKS_PER_US/2)/CCT_TICKS_PER_US)/1000;
         
     }
 }
