@@ -6,6 +6,7 @@
 
 #include "lodepng.h"
 #include "vec2d.h"
+#include "color.h"
 
 #define D(d) //d
 
@@ -14,12 +15,6 @@
                                                     getter(img, x, y + offset) + \
                                                     getter(img, x + offset, y + offset))
 
-struct image{
-    unsigned char * const buf;
-    uint16_t width;
-    uint16_t height;
-};
-typedef struct image image_t;
 
 enum cmarker_check_result{
     CM_CHECK_NO_CHANGE,
@@ -36,153 +31,125 @@ struct cmarker{
 };
 typedef struct cmarker cmarker_t;
 
-struct rgb_color{
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
+struct color_calibration{ // 0 white field 1 black field
+    rgb_color_t empty[2];
+    rgb_color_t white_piece[2];
+    rgb_color_t black_piece[2];
 };
-typedef struct rgb_color rgb_color_t;
+typedef struct color_calibration color_calibration_t;
 
-uint8_t get_red(const image_t* const img, const uint16_t x, const uint16_t y){
-    //const uint32_t index = img->width * y + x;
-    //return (img->buf[index] >> 5) & 0b111;
-    const uint32_t index = (img->width * y + x) * 4;
-    return img->buf[index] >> 5;
-}
 
-uint8_t get_green(const image_t* const img, const uint16_t x, const uint16_t y){
-    //const uint32_t index = img->width * y + x;
-    //return (img->buf[index] >> 3) & 0b11;
-    const uint32_t index = (img->width * y + x) * 4 + 1;
-    return img->buf[index] >> 6;
-}
+enum field_state{
+    FIELD_EMPTY,
+    FIELD_WHITE_PIECE,
+    FIELD_BLACK_PIECE,
+    FIELD_UNKNOWN
+};
 
-uint8_t get_blue(const image_t* const img, const uint16_t x, const uint16_t y){
-    //const uint32_t index = img->width * y + x;
-    //return img->buf[index] & 0b111;
-    const uint32_t index = (img->width * y + x) * 4 + 2;
-    return img->buf[index] >> 5;
-}
-
-void set_red(const image_t* const img, const uint16_t x, const uint16_t y, const uint8_t val){
-    //const uint32_t index = img->width * y + x;
-    //return (img->buf[index] >> 5) & 0b111;
-    const uint32_t index = (img->width * y + x) * 4 + 0;
-    img->buf[index] = val << 5;
-}
-
-void set_green(const image_t* const img, const uint16_t x, const uint16_t y, const uint8_t val){
-    //const uint32_t index = img->width * y + x;
-    //return (img->buf[index] >> 3) & 0b11;
-    const uint32_t index = (img->width * y + x) * 4 + 1;
-    img->buf[index] = val << 6;
-}
-
-void set_blue(const image_t* const img, const uint16_t x, const uint16_t y, const uint8_t val){
-    //const uint32_t index = img->width * y + x;
-    //return img->buf[index] & 0b111;
-    const uint32_t index = (img->width * y + x) * 4 + 2;
-    img->buf[index] = val << 5;
-}
+typedef enum field_state field_state_t;
 
 bool check_possible_marker(const image_t* const img, cmarker_t* const marker){
-    uint16_t x_min = marker->x;
-    uint16_t x = marker->x;
-    uint16_t x_max = marker->x;
-    uint16_t y_min = marker->y;
-    uint16_t y = marker->y;
-    uint16_t y_max = marker->y;
+    int16_t x_min = marker->x;
+    int16_t x = marker->x;
+    int16_t x_max = marker->x;
+    int16_t y_min = marker->y;
+    int16_t y = marker->y;
+    int16_t y_max = marker->y;
+    uint8_t expected_blue = (marker->origin) ? 0x80 : 0x00;
     for(uint8_t i = 0; i < 2; i++){
         for (; x_min >= 0; x_min--){
             uint8_t red = get_red( img, x_min, y);
             uint8_t green = get_green( img, x_min, y);
             uint8_t blue = get_blue( img, x_min, y);
-            if((red > 2) ||
-                (!marker->origin && (green < 2 || blue > 2)) ||
-                (marker->origin && (green > 2 || blue < 4)))
+            if((red != 0) || (green != 0x80) || (blue != expected_blue))
                 break;
         }
         for (; x_max < img->width; x_max++){
             uint8_t red = get_red( img, x_max, y);
             uint8_t green = get_green( img, x_max, y);
             uint8_t blue = get_blue( img, x_max, y);
-            if((red > 2) ||
-                (!marker->origin && (green < 2 || blue > 2)) ||
-                (marker->origin && (green > 2 || blue < 4)))
+            if((red != 0) || (green != 0x80) || (blue != expected_blue))
                 break;
         }
 
         x = (x_min + x_max) / 2;
+        if((x_max - x_min) > img->height / 10){
+            //printf("to larger for marker\n");
+            return false;
+        }
 
         for (; y_min >= 0; y_min--){
             uint8_t red = get_red( img, x, y_min);
             uint8_t green = get_green( img, x, y_min);
             uint8_t blue = get_blue( img, x, y_min);
-            if((red > 2) ||
-                (!marker->origin && (green < 2 || blue > 2)) ||
-                (marker->origin && (green > 2 || blue < 4)))
+            if((red != 0) || (green != 0x80) || (blue != expected_blue))
                 break;
         }
-        for (; y_max < img->width; y_max++){
+        for (; y_max < img->height; y_max++){
             uint8_t red = get_red( img, x, y_max);
             uint8_t green = get_green( img, x, y_max);
             uint8_t blue = get_blue( img, x, y_max);
-            if((red > 2) ||
-                (!marker->origin && (green < 2 || blue > 2)) ||
-                (marker->origin && (green > 2 || blue < 4)))
+            if((red != 0) || (green != 0x80) || (blue != expected_blue))
                 break;
         }
 
         y = (y_min + y_max) / 2;
+        if((y_max - y_min) > img->height / 10){
+            //printf("to larger for marker\n");
+            return false;
+        }
     }
 
     marker->x = (x_min + x_max) / 2;
     marker->y = (y_min + y_max) / 2;
+
     printf("(%d-%d|%d-%d)\n", x_min, x_max, y_min, y_max);
-    return ((x_max - x_min) > img->height / 16 && (y_max - y_min) > img->height / 16);
+    uint16_t x_size = x_max - x_min;
+    uint16_t y_size = y_max - y_min;
+    return (x_size > img->height / 16 && y_size > img->height / 16);
 }
 
-bool find_marker(const image_t* const img, cmarker_t* marker, uint16_t x_min, uint16_t x_max, uint16_t y_min, uint16_t y_max){
-    for (size_t y = y_min; y < y_max - 3; y += 3){
-        for (size_t x = x_min; x < x_max - 3; x += 3){
-            const uint8_t red = QUAD_COLOR_SUM(get_red, img, x, y, 3);
-            const uint8_t green = QUAD_COLOR_SUM(get_green, img, x, y, 3);
-            const uint8_t blue = QUAD_COLOR_SUM(get_blue, img, x, y, 3);
-            if(red <= 8){
-                if(green >= 7 && blue <= 8){
-                    printf("g(%d|%d): %d %d %d\n", x, y, red, green, blue);
+bool find_marker( image_t* const img, cmarker_t* marker, uint16_t x_min, uint16_t x_max, uint16_t y_min, uint16_t y_max){
+    for (size_t y = y_min; y < y_max; y += 8){
+        for (size_t x = x_min; x < x_max; x += 8){
+            const uint16_t red = QUAD_COLOR_SUM(get_red, img, x, y, 3);
+            const uint16_t green = QUAD_COLOR_SUM(get_green, img, x, y, 3);
+            const uint16_t blue = QUAD_COLOR_SUM(get_blue, img, x, y, 3);
+            if(red == 0x00){
+                if(green == 0x80 * 4 && blue == 0x00){
+                    //printf("g(%d|%d): %d %d %d\n", x, y, red, green, blue);
                     marker->origin = false;
                     marker->x = x;
                     marker->y = y;
                     if(check_possible_marker(img, marker)){
-                        D(set_red(img, x, y, 0));
-                        D(set_green(img, x, y, 0));
-                        D(set_blue(img, x, y, 0));
-                        D(set_red(img, x + 1, y, 0));
-                        D(set_green(img, x + 1, y, 3));
-                        D(set_blue(img, x + 1, y, 0));
-                        D(set_red(img, marker->x, marker->y, 7));
+                        D(set_red(img, marker->x, marker->y, 0xf0));
                         D(set_green(img, marker->x, marker->y, 0));
                         D(set_blue(img, marker->x, marker->y, 0));
                         return true;
                     }
-                }else if(green <= 3 && blue >= 14){
-                    printf("b(%d|%d): %d %d %d\n", x, y, red, green, blue);
+                    D(set_red(img, x, y, 0));
+                    D(set_green(img, x, y, 0));
+                    D(set_blue(img, x, y, 0));
+                    D(set_red(img, x + 1, y, 0));
+                    D(set_green(img, x + 1, y, 0xf0));
+                    D(set_blue(img, x + 1, y, 0));
+                }else if(green == 0x80 * 4 && blue == 0x80 * 4){
+                    //printf("b(%d|%d): %d %d %d\n", x, y, red, green, blue);
                     marker->origin = true;
                     marker->x = x;
                     marker->y = y;
                     if(check_possible_marker(img, marker)){
-                        D(set_red(img, x, y, 0));
-                        D(set_green(img, x, y, 0));
-                        D(set_blue(img, x, y, 0));
-                        D(set_red(img, x + 1, y, 0));
-                        D(set_green(img, x + 1, y, 0));
-                        D(set_blue(img, x + 1, y, 7));
-                        D(set_red(img, marker->x, marker->y, 7));
+                        D(set_red(img, marker->x, marker->y, 0xf0));
                         D(set_green(img, marker->x, marker->y, 0));
                         D(set_blue(img, marker->x, marker->y, 0));
                         return true;
                     }
+                    D(set_red(img, x, y, 0));
+                    D(set_green(img, x, y, 0));
+                    D(set_blue(img, x, y, 0));
+                    D(set_red(img, x + 1, y, 0));
+                    D(set_green(img, x + 1, y, 0));
+                    D(set_blue(img, x + 1, y, 0xf0));
                 }
             }
         }
@@ -212,6 +179,10 @@ bool find_markers(/*const*/ image_t* const img, cmarker_t markers[4]){
         }
     }
     printf("Found %d marker (%d marked as origin)\n", marker_count, origin_counter);
+
+    uint8_t error = lodepng_encode32_file("marker.png", img->buf, img->width, img->height);
+    if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+
     return (marker_count == 4 && origin_counter == 1);
 };
 
@@ -223,10 +194,6 @@ void calculate_fields(/*const*/ image_t* const img, vec2di_t fields[8][8], const
             break;
         }
     }
-
-    uint8_t error = lodepng_encode32_file("marker.png", img->buf, img->width, img->height);
-    if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
-
 
     printf("calculating field positions...\n");
 
@@ -246,7 +213,9 @@ void calculate_fields(/*const*/ image_t* const img, vec2di_t fields[8][8], const
             .x = (markers[y_marker].x - (markers[origin_marker].x) + (markers[corner_marker].x - markers[x_marker].x)) / 2,
             .y = (markers[y_marker].y - (markers[origin_marker].y) + (markers[corner_marker].y - markers[x_marker].y)) / 2
         };
-    
+    printf("x-achsis: (%f|%f)\n", x_achsis.x, x_achsis.y);
+    printf("y-achsis: (%f|%f)\n", y_achsis.x, y_achsis.y);
+
     for (size_t y = 0; y < 8; y++){
         for (size_t x = 0; x < 8; x++){
             vec2df_t offset_x = div_vec2df(mul_vec2df(x_achsis, x + 1), 9);
@@ -257,11 +226,11 @@ void calculate_fields(/*const*/ image_t* const img, vec2di_t fields[8][8], const
                     .y = round(pos.y)
                 };
             D(set_red(img, fields[x][y].x, fields[x][y].y, 0));
-            D(set_green(img, fields[x][y].x, fields[x][y].y, 3));
+            D(set_green(img, fields[x][y].x, fields[x][y].y, 0xff));
             D(set_blue(img, fields[x][y].x, fields[x][y].y, 0));
         }
     }
-    error = lodepng_encode32_file("fields.png", img->buf, img->width, img->height);
+    uint8_t error = lodepng_encode32_file("fields.png", img->buf, img->width, img->height);
     if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
 }
@@ -282,54 +251,138 @@ cmarker_check_result_t check_markers(const image_t* const img, cmarker_t markers
     return adjusted ? CM_CHECK_ADJUSTED : CM_CHECK_NO_CHANGE;
 }
 
-rgb_color_t avg_color_field(image_t* img, const vec2di_t field){
-    int32_t x_min = field.x - img->height / 30;
+rgb_color_t avg_color_field(const image_t* const img, const vec2di_t field){
+    int32_t x_min = field.x - img->height / 40;
     if(x_min < 0){
         x_min = 0;
     }
-    int32_t x_max = field.x + img->height / 30;
+    int32_t x_max = field.x + img->height / 40;
     if(x_min > img->width - 1){
         x_min = img->width - 1;
     }
-    int32_t y_min = field.y - img->height / 30;
+    int32_t y_min = field.y - img->height / 40;
     if(y_min < 0){
         y_min = 0;
     }
-    int32_t y_max = field.y + img->height / 30;
+    int32_t y_max = field.y + img->height / 40;
     if(y_min > img->height - 1){
         y_min = img->height - 1;
     }
 
-    uint32_t red = 0;
-    uint32_t green = 0;
-    uint32_t blue = 0;
+    rgb_vec3d_t color = {0,0,0};
     for(uint32_t y = y_min; y < y_max; y++){
         for(uint32_t x = x_min; x < x_max; x++){
-            red += get_red( img, x, y);
-            green += get_green( img, x, y);
-            blue += get_blue( img, x, y);
+            color = add_rgb(color, rgb_vec3d(get_rgb(img, x, y)));
         }
     }
     const uint32_t div = (x_max - x_min) * (y_max - y_min);
-    red /= div;
-    green /= div;
-    blue /= div;
-    return (rgb_color_t){red, green, blue};
+    color = div_rgb(color, div);
+    return (rgb_color_t){color.red, color.green, color.blue};
 }
 
-void calibrate_colors(image_t* img, const vec2di_t fields[8][8]){
+void calibrate_colors(const image_t* const img, const vec2di_t fields[8][8], color_calibration_t* const calibration){
+    rgb_vec3d_t color = {0,0,0};
+    for(uint8_t i = 0; i < 8; i++){
+        color = add_rgb(color, rgb_vec3d(avg_color_field(img, fields[i][3 - (i & 1)])));
+        color = add_rgb(color, rgb_vec3d(avg_color_field(img, fields[i][5 - (i & 1)])));
+    }
+    color = div_rgb(color, 16);
+    calibration->empty[0] = (rgb_color_t){color.red, color.green, color.blue};
+
+    color.red = 0;
+    color.green = 0;
+    color.blue = 0;
+    for(uint8_t i = 0; i < 8; i++){
+        color = add_rgb(color, rgb_vec3d(avg_color_field(img, fields[i][2 + (i & 1)])));
+        color = add_rgb(color, rgb_vec3d(avg_color_field(img, fields[i][4 + (i & 1)])));
+    }
+    color = div_rgb(color, 16);
+    calibration->empty[1] = (rgb_color_t){color.red, color.green, color.blue};
+
+    color.red = 0;
+    color.green = 0;
+    color.blue = 0;
+    for(uint8_t i = 0; i < 8; i++){
+        color = add_rgb(color, rgb_vec3d(avg_color_field(img, fields[i][1 - (i & 1)])));
+    }
+    color = div_rgb(color, 8);
+    calibration->white_piece[0] = (rgb_color_t){color.red, color.green, color.blue};
     
+
+    color.red = 0;
+    color.green = 0;
+    color.blue = 0;
+    for(uint8_t i = 0; i < 8; i++){
+        color = add_rgb(color, rgb_vec3d(avg_color_field(img, fields[i][(i & 1)])));
+    }
+    color = div_rgb(color, 8);
+    calibration->white_piece[1] = (rgb_color_t){color.red, color.green, color.blue};
+
+    color.red = 0;
+    color.green = 0;
+    color.blue = 0;
+    for(uint8_t i = 0; i < 8; i++){
+        color = add_rgb(color, rgb_vec3d(avg_color_field(img, fields[i][7 - (i & 1)])));
+    }
+    color = div_rgb(color, 8);
+    calibration->black_piece[0] = (rgb_color_t){color.red, color.green, color.blue};
+    
+
+    color.red = 0;
+    color.green = 0;
+    color.blue = 0;
+    for(uint8_t i = 0; i < 8; i++){
+        color = add_rgb(color, rgb_vec3d(avg_color_field(img, fields[i][6 + (i & 1)])));
+    }
+    color = div_rgb(color, 8);
+    calibration->black_piece[1] = (rgb_color_t){color.red, color.green, color.blue};
+
+    uint8_t error = lodepng_encode32_file("color.png", img->buf, img->width, img->height);
+    if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
+}
+
+field_state_t get_field_state(const image_t* const img, const vec2di_t field, bool black_field, const color_calibration_t* const calibration){
+
+    rgb_color_t field_color = avg_color_field(img, field);
+    printf("%d (%d|%d)\n", black_field, field.x, field.y);
+    field_state_t state = FIELD_EMPTY;
+    uint64_t min_distance = color_distance(field_color, calibration->empty[black_field]);
+    
+    uint64_t distance = color_distance(field_color, calibration->white_piece[black_field]);
+    if(min_distance > distance){
+        state = FIELD_WHITE_PIECE;
+    }
+
+    distance = color_distance(field_color, calibration->black_piece[black_field]);
+    if(min_distance > distance){
+        state = FIELD_BLACK_PIECE;
+    }
+    printf("min_distance %d\n", min_distance);
+    //if(min_distance < 40){
+        return state;
+    //}
+    return FIELD_UNKNOWN;
 }
 
 int main(int argc, char const *argv[]){
+
+    static vec2di_t fields[8][8];
+    static field_state_t board_state[8][8] = {
+        {FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE},
+        {FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE, FIELD_WHITE_PIECE},
+        {   FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   },
+        {   FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   },
+        {   FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   },
+        {   FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   ,    FIELD_EMPTY   },
+        {FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE},
+        {FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE, FIELD_BLACK_PIECE}
+    };
+    static color_calibration_t calibration;
+
     unsigned error;
     unsigned char* img_buf = 0;
     unsigned w, h;
-    static uint8_t img_bufs[2][128 * 128];
-    static uint8_t active_buf_index = 0;
-    static vec2di_t fields[8][8];
-
-    error = lodepng_decode32_file(&img_buf, &w, &h, "test.png");
+    error = lodepng_decode32_file(&img_buf, &w, &h, "capture0.png");
     if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
     image_t img = {
         .buf = img_buf,
@@ -343,15 +396,15 @@ int main(int argc, char const *argv[]){
     for (size_t y = 0; y < h; y++){
         for (size_t x = 0; x < w; x++){
             const uint32_t index = (img.width * y + x) * 4;
-            set_red(&img, x, y, get_red(&img, x, y));
-            set_green(&img, x, y, get_green(&img, x, y));
-            set_blue(&img, x, y, get_blue(&img, x, y));
+            set_red(&img, x, y, get_red(&img, x, y) & 0b10000000);
+            set_green(&img, x, y, get_green(&img, x, y) & 0b10000000);
+            set_blue(&img, x, y, get_blue(&img, x, y) & 0b10000000);
         }
     }
     error = lodepng_encode32_file("low_color.png", img_buf, w, h);
     if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
 
-    image_t img_small = {
+    /*image_t img_small = {
             .buf = malloc((w / 2) * (h / 2) * 4),
             .width = w / 2,
             .height = h / 2
@@ -371,34 +424,71 @@ int main(int argc, char const *argv[]){
     
     error = lodepng_encode32_file("small.png", img_small.buf, img_small.width, img_small.height);
     if(error) printf("error %u: %s\n", error, lodepng_error_text(error));
-
+*/
 
     //while
     bool first = true;
     {
         cmarker_t markers[4];
-        if(find_markers(&img_small, markers)){
-            calculate_fields(&img_small, fields, markers);
+        if(find_markers(&img, markers)){
+            calculate_fields(&img, fields, markers);
         }
         if(first){
-            calibrate_colors(&img_small, fields);
+            calibrate_colors(&img, fields, &calibration);
+            printf("white empty:(%d|%d|%d)\n", calibration.empty[0].red, calibration.empty[0].green, calibration.empty[0].blue);
+            printf("black empty:(%d|%d|%d)\n", calibration.empty[1].red, calibration.empty[1].green, calibration.empty[1].blue);
+            printf("white white_piece:(%d|%d|%d)\n", calibration.white_piece[0].red, calibration.white_piece[0].green, calibration.white_piece[0].blue);
+            printf("black white_piece:(%d|%d|%d)\n", calibration.white_piece[1].red, calibration.white_piece[1].green, calibration.white_piece[1].blue);
+            printf("white black_piece:(%d|%d|%d)\n", calibration.black_piece[0].red, calibration.black_piece[0].green, calibration.black_piece[0].blue);
+            printf("black black_piece:(%d|%d|%d)\n", calibration.black_piece[1].red, calibration.black_piece[1].green, calibration.black_piece[1].blue);
         }
-        for(int i = 0; i < 10; i++){
-            cmarker_check_result_t check_marker_result = check_markers(&img_small,markers);
+        for(int i = 0; i < 1; i++){
+            cmarker_check_result_t check_marker_result = check_markers(&img,markers);
             if(check_marker_result == CM_CHECK_ADJUSTED){
                 printf("CM_CHECK_ADJUSTED\n");
-                calculate_fields(&img_small, fields, markers);
+                calculate_fields(&img, fields, markers);
             }else if(check_marker_result == CM_CHECK_INVALID){
                 printf("CM_CHECK_INVALID\n");
                 //break;
             }else{
                 printf("CM_CHECK_NO_CHANGE\n");
             }
+            for (size_t y = 0; y < 8; y++){
+                for (size_t x = 0; x < 8; x++){
+                    field_state_t current_state = get_field_state(&img, fields[x][y], !((x & 1) ^ (y & 1)), &calibration);
+                    if(board_state[y][x] != current_state){
+                        if(current_state == FIELD_UNKNOWN){
+                            printf("Ich bin dumm: (%d|%d)\n", x, y);
+                        }
+                        printf("update at (%d|%d)\n", x, y);
+                        board_state[y][x] = current_state;
+                    }
+                }
+            }
+            for (size_t y = 0; y < 8; y++){
+                for (size_t x = 0; x < 8; x++){
+                    switch(board_state[y][x]){
+                    case FIELD_EMPTY:
+                        printf(" ");
+                        break;
+                    case FIELD_UNKNOWN:
+                        printf("x");
+                        break;
+                    case FIELD_BLACK_PIECE:
+                        printf("#");
+                        break;
+                    case FIELD_WHITE_PIECE:
+                        printf("+");
+                        break;
+                    default:
+                        break;
+                    }
+                }
+                printf("\n");
+            }
         }
     }
 
-
-    free(img_small.buf);
     free(img_buf);
     return 0;
 }
