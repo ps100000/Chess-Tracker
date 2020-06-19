@@ -125,30 +125,31 @@ def make_move(psg_board, window, move_str, line):
     to_col = ord(move_str[2]) - ord('a')
     to_row = 8 - int(move_str[3])
 
-    try:
-        analyzed_score = engine.analyse(board, chess.engine.Limit(time=0.2))
-        score = analyzed_score.get('score')
-        depth = analyzed_score.get('depth')
-        window.FindElement('_score_').Update(f'Score of your board is {score} with a analyzed depth of {depth}.', append=True)
-        best_move = engine.play(board, chess.engine.Limit(time=0.2)).move
-        window.FindElement('_best_move_').Update(f'{best_move} with a analyzed depth of {depth}.', append=True)
+    move = chess.Move.from_uci(move_str)
 
-        move = chess.Move.from_uci(move_str)
-        if not board.is_legal(move):
-            sg.Popup(f'ERROR: {line} is not a legal move.\n')
-            sys.exit()
-
-        window.FindElement('_movelist_').Update(line + '\n', append=True)
-
-    except:
+    if not board.is_legal(move):
+        sg.Popup(f'ERROR: {line} is not a legal move.\n')
         sys.exit()
+
+    board.push(move)
 
     piece = psg_board[from_row][from_col]
     psg_board[from_row][from_col] = BLANK
     psg_board[to_row][to_col] = piece
     redraw_board(window, psg_board)
 
-    board.push(move)
+    try:
+        analyzed_score = engine.analyse(board, chess.engine.Limit(time=0.2))
+        score = analyzed_score.get('score')
+        depth = analyzed_score.get('depth')
+        window.FindElement('_score_').Update(f'Score of your board is {score} with a analyzed depth of {depth}.', append=True)
+        window.FindElement('_movelist_').Update(line + '\n', append=True)
+
+    except:
+        sys.exit()
+
+    best_move = engine.play(board, chess.engine.Limit(time=0.2)).move
+    window.FindElement('_best_move_').Update(f'{best_move} with a analyzed depth of {depth}.', append=True)
 
     if (board.is_check()):
         sg.Popup('Check')
