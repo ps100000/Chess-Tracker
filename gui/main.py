@@ -66,7 +66,7 @@ def render_square(image, key, location):
         color = '#B58863'
     else:
         color = '#F0D9B5'
-    return sg.Button('', image_filename=image, image_size=(90,90), size=(1, 1), button_color=('white', color), pad=(0, 0), key=key, focus=False)
+    return sg.Button('', image_filename=image, size=(1, 1), button_color=('white', color), pad=(0, 0), key=key, focus=False)
 
 def redraw_board(window, board):
     for i in range(8):
@@ -82,7 +82,7 @@ def create_gui(board):
     # create initial board setup
     psg_board = copy.deepcopy(initial_board)
     # the main board display layout
-    board_layout = [[sg.T('     ')] + [sg.T('{}'.format(a), pad=((23, 27), 0), font='Any 13') for a in 'abcdefgh']]
+    board_layout = [[sg.T('     ')] + [sg.T('{}'.format(a), pad=((40, 40), 0), font='Any 13') for a in 'abcdefgh']]
     # loop through board and create buttons with images
     for i in range(8):
         row = [sg.T(str(8 - i) + '   ', font='Any 13')]
@@ -93,7 +93,7 @@ def create_gui(board):
         board_layout.append(row)
 
     # add the labels across bottom of board
-    board_layout.append([sg.T('     ')] + [sg.T('{}'.format(a), pad=((23, 27), 0), font='Any 13') for a in 'abcdefgh'])
+    board_layout.append([sg.T('     ')] + [sg.T('{}'.format(a), pad=((40, 40), 0), font='Any 13') for a in 'abcdefgh'])
 
     # setup the controls on the right side of screen
     board_controls = [[sg.RButton('Continue', key='Continue')],
@@ -125,19 +125,23 @@ def make_move(psg_board, window, move_str, line):
     to_col = ord(move_str[2]) - ord('a')
     to_row = 8 - int(move_str[3])
 
-    analyzed_score = engine.analyse(board, chess.engine.Limit(time=0.2))
-    score = analyzed_score.get('score')
-    depth = analyzed_score.get('depth')
-    window.FindElement('_score_').Update(f'Score of your board is {score} with a analyzed depth of {depth}.', append=True)
-    best_move = engine.play(board, chess.engine.Limit(time=0.2)).move
-    window.FindElement('_best_move_').Update(f'{best_move} with a analyzed depth of {depth}.', append=True)
+    try:
+        analyzed_score = engine.analyse(board, chess.engine.Limit(time=0.2))
+        score = analyzed_score.get('score')
+        depth = analyzed_score.get('depth')
+        window.FindElement('_score_').Update(f'Score of your board is {score} with a analyzed depth of {depth}.', append=True)
+        best_move = engine.play(board, chess.engine.Limit(time=0.2)).move
+        window.FindElement('_best_move_').Update(f'{best_move} with a analyzed depth of {depth}.', append=True)
 
-    move = chess.Move.from_uci(move_str)
-    if not board.is_legal(move):
-        sg.Popup(f'ERROR: {line} is not a legal move.\n')
+        move = chess.Move.from_uci(move_str)
+        if not board.is_legal(move):
+            sg.Popup(f'ERROR: {line} is not a legal move.\n')
+            sys.exit()
+
+        window.FindElement('_movelist_').Update(line + '\n', append=True)
+
+    except:
         sys.exit()
-
-    window.FindElement('_movelist_').Update(line + '\n', append=True)
 
     piece = psg_board[from_row][from_col]
     psg_board[from_row][from_col] = BLANK
