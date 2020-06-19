@@ -32,7 +32,7 @@ attachInterrupt(PUSH_PIN, changePlayer, HIGH);
 void timer()
 {
     /*----------locals----------*/
-    bool itsPlayerOnesTurn = true;
+    bool itsPlayerOnesTurn = true, player1Win = false, player2Win = false;
     int time_player1 = TIME_PER_PLAYER_IN_MS, time_player2 = TIME_PER_PLAYER_IN_MS;
     uint32_t cctMarker = 0, now = 0, exactlyTimeInMS = 0;
     const TickType_t xDelay = 1 / portTICK_PERIOD_MS;
@@ -42,29 +42,31 @@ void timer()
         if (itsPlayerOnesTurn)
         {
             time_player1 -= exactlyTimeInMS;
-            printf("%i\n", time_player1);
+            printf("Time Player 1: %i\n", time_player1);
         }
         else
         {
             time_player2 -= exactlyTimeInMS;
-            printf("%i\n", time_player2);
+            printf("Time Player 2: %i\n", time_player2);
         }
 
         if (time_player1 <= 0)
         {
             printf("Player 1 lost");
+            player1Win = false;
+            player2Win = true;
             isGameStarted = false;
         }
         else if (time_player2 <= 0)
         {
             printf("Player 2 lost");
+            player1Win = true;
+            player2Win = false;
             isGameStarted = false;
         }
 
         cctMarker = XTHAL_GET_CCOUNT();
-
         vTaskDelay(xDelay);
-
         now = XTHAL_GET_CCOUNT();
 
         exactlyTimeInMS = (cctMarker <= now ?
