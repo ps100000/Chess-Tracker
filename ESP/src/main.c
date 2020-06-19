@@ -4,13 +4,15 @@
 #include <esp_timer.h>
 #include <esp_log.h>
 #include <esp_system.h>
+#include <esp32/spiram.h>
+#include <driver/uart.h>
 
 static const char* TAG = "cam";
 
 //WROVER-KIT PIN Map
-#define CAM_PIN_PWDN    -1 //power down is not used
+#define CAM_PIN_PWDN    32 //power down is not used
 #define CAM_PIN_RESET   -1 //software reset will be performed
-#define CAM_PIN_XCLK    21
+#define CAM_PIN_XCLK    0
 #define CAM_PIN_SIOD    26
 #define CAM_PIN_SIOC    27
 
@@ -18,10 +20,10 @@ static const char* TAG = "cam";
 #define CAM_PIN_D6      34
 #define CAM_PIN_D5      39
 #define CAM_PIN_D4      36
-#define CAM_PIN_D3      19
-#define CAM_PIN_D2      18
-#define CAM_PIN_D1       5
-#define CAM_PIN_D0       4
+#define CAM_PIN_D3      21
+#define CAM_PIN_D2      19
+#define CAM_PIN_D1      18
+#define CAM_PIN_D0       5
 #define CAM_PIN_VSYNC   25
 #define CAM_PIN_HREF    23
 #define CAM_PIN_PCLK    22
@@ -46,12 +48,12 @@ static camera_config_t camera_config = {
     .pin_pclk = CAM_PIN_PCLK,
 
     //XCLK 20MHz or 10MHz for OV2640 double FPS (Experimental)
-    .xclk_freq_hz = 10000000,
+    .xclk_freq_hz = 20000000,
     .ledc_timer = LEDC_TIMER_0,
     .ledc_channel = LEDC_CHANNEL_0,
 
-    .pixel_format = PIXFORMAT_RGB565,//YUV422,GRAYSCALE,RGB565,JPEG
-    .frame_size = FRAMESIZE_240X240,//QQVGA-QXGA Do not use sizes above QVGA when not JPEG
+    .pixel_format = PIXFORMAT_RGB888,//YUV422,GRAYSCALE,RGB565,JPEG
+    .frame_size = FRAMESIZE_SVGA,//QQVGA-QXGA Do not use sizes above QVGA when not JPEG
 
     .jpeg_quality = 12, //0-63 lower number means higher quality
     .fb_count = 1 //if more than one, i2s runs in continuous mode. Use only with JPEG
@@ -72,6 +74,69 @@ esp_err_t camera_module_init(){
         return err;
     }
 
+    return ESP_OK;
+}
+
+void process_image(size_t width, size_t height, pixformat_t format, uint8_t* buf, size_t len){
+    size_t count = 0;
+    static const char img[4] = {' ', '-', '+', '#'};
+    ESP_LOGI(TAG, "width %d height %d format %d len %d", width, height, format, len);
+    uint64_t red = 0;
+    uint64_t green = 0;
+    uint64_t blue = 0;
+
+    //ESP_LOG_BUFFER_HEX_LEVEL("", buf,len, ESP_LOG_INFO);
+    for (size_t y = 0; y < height; y += 4){
+        for (size_t x = 0; x < width; x += 4){
+            printf("%c", img[buf[(y * width + x) * 3] / 65]);
+            count++;
+
+            //red += buf[count * 3];
+            //green += buf[count * 3 + 1];
+            //blue += buf[count * 3 + 2];
+            
+            //uint32_t index = (y * width + x) *2;
+            //printf("0x%x,0x%x,0x%x, ", buf[index] & 0b11111, ((buf[index] >> 5) & 0b111) | (buf[index + 1] & 0b111), buf[index + 1] >> 3 & 0b11111);
+        }
+        if(!(y % 20))
+            vTaskDelay(1);
+        printf("\n");
+    }
+    printf("\n");
+    for (size_t y = 0; y < height; y += 4){
+        for (size_t x = 0; x < width; x += 4){
+            printf("%c", img[buf[(y * width + x) * 3 + 1] / 65]);
+            count++;
+        }
+        if(!(y % 20))
+            vTaskDelay(1);
+        printf("\n");
+    }
+    printf("\n");
+    for (size_t y = 0; y < height; y += 4){
+        for (size_t x = 0; x < width; x += 4){
+            printf("%c", img[buf[(y * width + x) * 3 + 2] / 65]);
+            count++;
+        }
+        if(!(y % 20))
+            vTaskDelay(1);
+        printf("\n");
+    }
+    printf("\n %d\n", count);
+}
+
+esp_err_t camera_capture(){
+    //acquire a frame
+    camera_fb_t * fb = esp_camera_fb_get();
+    if (!fb) {
+        ESP_LOGE(TAG, "Camera Capture Failed");
+        return ESP_FAIL;
+    }
+    //replace this with your own function
+    process_image(fb->width, fb->height, fb->format, fb->buf, fb->len);
+  
+    //return the frame buffer back to the driver for reuse
+    esp_camera_fb_return(fb);
     return ESP_OK;
 }
 
@@ -107,5 +172,14 @@ esp_err_t bmp_httpd_handler(httpd_req_t *req){
 }
 
 void app_main() {
-
+    camera_module_init();
+    //for (size_t i = 0; i < 20; i++){
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    
+    printf("%d\n", esp_get_free_heap_size());
+    while(1){
+        camera_capture();
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+    sensor_t * s = esp_camera_sensor_get();
 }
