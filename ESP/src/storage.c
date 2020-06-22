@@ -1,4 +1,7 @@
-#include "..\include\storage.h"
+#include "storage.h"
+#include "driver/sdmmc_host.h"
+#include "driver/sdspi_host.h"
+#include "esp_vfs_fat.h"
 
 void storage_init()
 {
@@ -16,5 +19,5 @@ void storage_init()
     };
 
     sdmmc_card_t* card;
-    esp_err_t ret = esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+    ESP_ERROR_CHECK(esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card));
 }
