@@ -28,7 +28,7 @@ void countdown_init(){
     io_conf.pin_bit_mask = 1ULL << PUSH_PIN;
     io_conf.pull_down_en = 1;
     io_conf.pull_up_en = 0;
-    io_conf.intr_type = GPIO_PIN_INTR_POSEDGE;
+    io_conf.intr_type = GPIO_PIN_INTR_ANYEDGE;
     io_conf.mode = GPIO_MODE_INPUT;
     gpio_config(&io_conf); 
 
