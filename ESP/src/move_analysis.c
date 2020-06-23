@@ -5,11 +5,11 @@
 #include "move_analysis.h"
 #include "storage.h"
 /*----------------------------*/
-void analyse_move(field_state_change_t state[8][8], char* logline_buf)
+void analyse_move(field_state_change_t state[8][8])
 {
     /*----------locals----------*/
     bool isPieceBeforeEmpty = false;
-    char piece = ' ', fieldLetter, temp[LOGLINE_BUF_SIZE] = "";
+    char piece = ' ', fieldLetter, temp[LOGLINE_BUF_SIZE] = "", logline_buf[LOGLINE_BUF_SIZE] = "";
     int pieceField[2] = { 0, 0 }, changes = 0;
 	static char completeField[8][8] =
 	{
@@ -33,9 +33,9 @@ void analyse_move(field_state_change_t state[8][8], char* logline_buf)
 			/*----------change number into a letter----------*/
 			fieldLetter = 'A' + x;
 			/*-----------------------------------------------*/
-			if (FIELD_NO_CHANGE == state[y][x])
+			if (FIELD_CHANGE_NO_CHANGE == state[y][x])
 				continue;
-			else if (FIELD_EMPTY == state[y][x])
+			else if (FIELD_CHANGE_EMPTY == state[y][x])
 			{
 				changes++;
 				piece = completeField[y][x];
@@ -57,7 +57,7 @@ void analyse_move(field_state_change_t state[8][8], char* logline_buf)
 
 				completeField[y][x] = '0';
 			}
-			else if ((FIELD_WHITE_PIECE == state[y][x]) || (FIELD_BLACK_PIECE == state[y][x]))
+			else if ((FIELD_CHANGE_WHITE_PIECE == state[y][x]) || (FIELD_CHANGE_BLACK_PIECE == state[y][x]))
 			{
 				changes++;
 				if (!strlen(logline_buf))
@@ -110,8 +110,8 @@ void analyse_move(field_state_change_t state[8][8], char* logline_buf)
 
 void isCastling(field_state_change_t state[8][8], char* const logline_buf, char completeField[8][8])
 {
-	if ((FIELD_EMPTY == state[0][0]) && (FIELD_BLACK_PIECE == state[0][2]) &&
-		(FIELD_BLACK_PIECE == state[0][3]) && (FIELD_EMPTY == state[0][4]))
+	if ((FIELD_CHANGE_EMPTY == state[0][0]) && (FIELD_CHANGE_BLACK_PIECE == state[0][2]) &&
+		(FIELD_CHANGE_BLACK_PIECE == state[0][3]) && (FIELD_CHANGE_EMPTY == state[0][4]))
 	{
 		completeField[0][0] = '0';
 		completeField[0][2] = 'K';
@@ -119,8 +119,8 @@ void isCastling(field_state_change_t state[8][8], char* const logline_buf, char 
 		completeField[0][4] = '0';
 		memcpy(logline_buf, "0-0-0", 5);
 	}
-	else if ((FIELD_EMPTY == state[7][0]) && (FIELD_WHITE_PIECE == state[7][2]) &&
-		(FIELD_WHITE_PIECE == state[7][3]) && (FIELD_WHITE_PIECE == state[7][4]))
+	else if ((FIELD_CHANGE_EMPTY == state[7][0]) && (FIELD_CHANGE_WHITE_PIECE == state[7][2]) &&
+		(FIELD_CHANGE_WHITE_PIECE == state[7][3]) && (FIELD_CHANGE_WHITE_PIECE == state[7][4]))
 	{
 		completeField[7][0] = '0';
 		completeField[7][2] = 'K';
@@ -128,8 +128,8 @@ void isCastling(field_state_change_t state[8][8], char* const logline_buf, char 
 		completeField[7][4] = '0';
 		memcpy(logline_buf, "0-0-0", 5);
 	}
-	else if ((FIELD_EMPTY == state[0][4]) && (FIELD_BLACK_PIECE == state[0][5]) &&
-		(FIELD_BLACK_PIECE == state[0][6]) && (FIELD_EMPTY == state[0][7]))
+	else if ((FIELD_CHANGE_EMPTY == state[0][4]) && (FIELD_CHANGE_BLACK_PIECE == state[0][5]) &&
+		(FIELD_CHANGE_BLACK_PIECE == state[0][6]) && (FIELD_CHANGE_EMPTY == state[0][7]))
 	{
 		completeField[0][4] = '0';
 		completeField[0][5] = 'T';
@@ -137,8 +137,8 @@ void isCastling(field_state_change_t state[8][8], char* const logline_buf, char 
 		completeField[0][7] = '0';
 		memcpy(logline_buf, "0-0", 3);
 	}
-	else if ((FIELD_EMPTY == state[7][4]) && (FIELD_WHITE_PIECE == state[7][5]) &&
-		(FIELD_WHITE_PIECE == state[7][6]) && (FIELD_EMPTY == state[7][7]))
+	else if ((FIELD_CHANGE_EMPTY == state[7][4]) && (FIELD_CHANGE_WHITE_PIECE == state[7][5]) &&
+		(FIELD_CHANGE_WHITE_PIECE == state[7][6]) && (FIELD_CHANGE_EMPTY == state[7][7]))
 	{
 		completeField[7][4] = '0';
 		completeField[7][5] = 'T';

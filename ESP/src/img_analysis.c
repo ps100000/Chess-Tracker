@@ -7,6 +7,7 @@
 #include "img_analysis_board.h"
 #include "img_analysis_pieces.h"
 #include "vec2d.h"
+#include "move_analysis.h"
 
 static const char* TAG = "img_analysis";
 TaskHandle_t img_analysis_taskhandle = NULL;
@@ -84,6 +85,7 @@ void img_analysis_task(void* pvParameters){
             }else{
                 printf("CM_CHECK_NO_CHANGE\n");
             }
+            field_state_change_t changes[8][8];
             for (size_t y = 0; y < 8; y++){
                 for (size_t x = 0; x < 8; x++){
                     field_state_t current_state = get_field_state(img, fields[x][y], !((x & 1) ^ (y & 1)), &calibration);
@@ -93,9 +95,25 @@ void img_analysis_task(void* pvParameters){
                         }
                         printf("update at (%d|%d)\n", x, y);
                         board_state[y][x] = current_state;
+                        switch(current_state){
+                            case FIELD_EMPTY:
+                                changes[y][x] = FIELD_CHANGE_EMPTY;
+                                break;
+                            case FIELD_BLACK_PIECE:
+                                changes[y][x] = FIELD_CHANGE_BLACK_PIECE;
+                                break;
+                            case FIELD_WHITE_PIECE:
+                                changes[y][x] = FIELD_CHANGE_WHITE_PIECE;
+                                break;
+                            default:
+                                break;
+                        }
+                    }else{
+                        changes[y][x] = FIELD_CHANGE_NO_CHANGE;
                     }
                 }
             }
+            analyse_move(changes);
             for (size_t y = 0; y < 8; y++){
                 for (size_t x = 0; x < 8; x++){
                     switch(board_state[y][x]){
