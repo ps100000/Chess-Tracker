@@ -18,6 +18,7 @@ rgb_color_t avg_color_field(const camera_fb_t* const img, const vec2di_t field){
     if(y_min > img->height - 1){
         y_min = img->height - 1;
     }
+    printf("avg %d-%d|%d-%d\n", x_min, x_max, y_min, y_max);
 
     rgb_vec3d_t color = {0,0,0};
     for(uint32_t y = y_min; y < y_max; y++){
@@ -32,6 +33,7 @@ rgb_color_t avg_color_field(const camera_fb_t* const img, const vec2di_t field){
 
 
 void calibrate_colors(const camera_fb_t* const img, const vec2di_t fields[8][8], color_calibration_t* const calibration){
+    printf("Calibrating colors...\n");
     rgb_vec3d_t color = {0,0,0};
     for(uint8_t i = 0; i < 8; i++){
         color = add_rgb(color, rgb_vec3d(avg_color_field(img, fields[i][3 - (i & 1)])));

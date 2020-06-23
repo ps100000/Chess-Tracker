@@ -152,11 +152,4 @@ void app_main() {
     storage_init();
     img_analysis_init();
     countdown_init();
-    while(1){
-        camera_capture();
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-    }
-    
-    // TODO change settings
-
 }

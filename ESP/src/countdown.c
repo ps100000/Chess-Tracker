@@ -21,8 +21,8 @@
 #define CCT_TICKS_PER_US 	    CONFIG_ESP32_DEFAULT_CPU_FREQ_MHZ
 #define PUSH_PIN                4
 #define ESP_INTR_FLAG_DEFAULT   0
-#define IC_RESET_PIN            4   // evtl. ändern
-#define IC_CLOCK_PIN            4   // evtl. ändern
+#define IC_RESET_PIN            12   // evtl. ändern
+#define IC_CLOCK_PIN            33   // evtl. ändern
 #define NO_OF_LEDS              6
 /*--------------------------*/
 /*----------globals----------*/
@@ -37,6 +37,12 @@ static const char* TAG = "countdown";
 /*---------------------------*/
 
 void countdown_init(){
+    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[IC_RESET_PIN], PIN_FUNC_GPIO);
+    gpio_set_direction(IC_RESET_PIN, GPIO_MODE_OUTPUT);
+
+    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[IC_CLOCK_PIN], PIN_FUNC_GPIO);
+    gpio_set_direction(IC_CLOCK_PIN, GPIO_MODE_OUTPUT);
+
     PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[PUSH_PIN], PIN_FUNC_GPIO);
     gpio_set_direction(PUSH_PIN, GPIO_MODE_INPUT);
     gpio_set_pull_mode(PUSH_PIN, GPIO_PULLDOWN_ONLY);
@@ -166,13 +172,25 @@ void IRAM_ATTR promotion(void* arg)
 
 void blinkLED_task()
 {
-    for (int i = 0; i < NO_OF_LEDS; i++){
+    while(1){
+        uint8_t num_on = 0;
         gpio_set_level(IC_CLOCK_PIN, 1);
-        if (LEDs[i]){
-            vTaskDelay(500 / portTICK_PERIOD_MS);
-        }else{
-            ets_delay_us(1);
-        }
+        ets_delay_us(1);
         gpio_set_level(IC_CLOCK_PIN, 0);
+        for (int i = 0; i < NO_OF_LEDS; i++){
+            gpio_set_level(IC_CLOCK_PIN, 1);
+            ets_delay_us(1);
+            gpio_set_level(IC_CLOCK_PIN, 0);
+            if (LEDs[i]){
+                num_on++;
+                vTaskDelay(500 / portTICK_PERIOD_MS);
+            }else{
+                ets_delay_us(1);
+            }
+        }
+        gpio_set_level(IC_RESET_PIN, 1);
+        ets_delay_us(1);
+        gpio_set_level(IC_RESET_PIN, 0);
+        vTaskDelay((NO_OF_LEDS - num_on) * 250 / portTICK_PERIOD_MS + 1);
     }
 }
