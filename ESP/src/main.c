@@ -7,6 +7,9 @@
 #include <esp32/spiram.h>
 #include <driver/uart.h>
 
+#include "countdown.h"
+#include "storage.h"
+
 static const char* TAG = "cam";
 
 //WROVER-KIT PIN Map
@@ -81,9 +84,6 @@ void process_image(size_t width, size_t height, pixformat_t format, uint8_t* buf
     size_t count = 0;
     static const char img[4] = {' ', '-', '+', '#'};
     ESP_LOGI(TAG, "width %d height %d format %d len %d", width, height, format, len);
-    uint64_t red = 0;
-    uint64_t green = 0;
-    uint64_t blue = 0;
 
     //ESP_LOG_BUFFER_HEX_LEVEL("", buf,len, ESP_LOG_INFO);
     for (size_t y = 0; y < height; y += 4){
@@ -176,10 +176,15 @@ void app_main() {
     //for (size_t i = 0; i < 20; i++){
     vTaskDelay(5000 / portTICK_PERIOD_MS);
     
+    countdown_init();
+    storage_init();
+
     printf("%d\n", esp_get_free_heap_size());
     while(1){
         camera_capture();
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
     sensor_t * s = esp_camera_sensor_get();
+    // TODO change settings
+
 }

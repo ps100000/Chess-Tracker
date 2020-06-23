@@ -2,8 +2,8 @@
 #include <memory.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include "..\include\move_analysis.h"
-#include "..\include\storage.h"
+#include "move_analysis.h"
+#include "storage.h"
 /*----------------------------*/
 void analyse_move(field_state_change_t state[8][8], char* logline_buf)
 {
@@ -11,17 +11,16 @@ void analyse_move(field_state_change_t state[8][8], char* logline_buf)
     bool isPieceBeforeEmpty = false;
     char piece = ' ', fieldLetter, temp[LOGLINE_BUF_SIZE] = "";
     int pieceField[2] = { 0, 0 }, changes = 0;
-    static field_state_change_t last_stateChange[8][8];
 	static char completeField[8][8] =
 	{
-		'T','S','L','D','K','L','S','T',
-		'B','B','B','B','B','B','B','B',
-		'0','0','0','0','0','0','0','0',
-		'0','0','0','0','0','0','0','0',
-		'0','0','0','0','0','0','0','0',
-		'0','0','0','0','0','0','0','0',
-		'B','B','B','B','B','B','B','B',
-		'T','S','L','D','K','L','S','T'
+		{'T','S','L','D','K','L','S','T'},
+		{'B','B','B','B','B','B','B','B'},
+		{'0','0','0','0','0','0','0','0'},
+		{'0','0','0','0','0','0','0','0'},
+		{'0','0','0','0','0','0','0','0'},
+		{'0','0','0','0','0','0','0','0'},
+		{'B','B','B','B','B','B','B','B'},
+		{'T','S','L','D','K','L','S','T'}
 	};
     /*--------------------------*/
     /*----------clear buffer----------*/
