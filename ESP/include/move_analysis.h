@@ -7,6 +7,8 @@
 #define LOGLINE_BUF_SIZE    10
 /*--------------------------*/
 /*----------globals----------*/
+int pieceField[2];
+char completeField[8][8];
 typedef enum field_state_change
 {
     FIELD_CHANGE_NO_CHANGE,

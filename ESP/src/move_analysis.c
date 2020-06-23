@@ -2,6 +2,8 @@
 #include <memory.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <driver/gpio.h>
+
 #include "countdown.h"
 #include "move_analysis.h"
 #include "storage.h"
@@ -11,7 +13,7 @@
 /*--------------------------*/
 /*----------globals----------*/
 int pieceField[2] = { 0, 0 };
-static char completeField[8][8] =
+char completeField[8][8] =
 	{
 		{'T','S','L','D','K','L','S','T'},
 		{'B','B','B','B','B','B','B','B'},
@@ -103,7 +105,7 @@ void analyse_move(field_state_change_t state[8][8])
 		memset(logline_buf, '\0', LOGLINE_BUF_SIZE);
 		changes = 0;
 		isCastling(state, logline_buf, completeField);
-	}else if (('B' == piece) && ('A' == pieceField[0]) || ('H' == pieceField[0])){
+	}else if (('B' == piece) && (('A' == pieceField[0]) || ('H' == pieceField[0]))){
 		gpio_isr_handler_remove(PUSH_PIN);
 		gpio_isr_handler_add(PUSH_PIN, promotion, (void*) PUSH_PIN);
 	}

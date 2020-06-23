@@ -30,7 +30,7 @@ bool isGameStarted = true; // TODO make game state struct
 uint16_t turn = 0;
 bool itsPlayerWhitesTurn = true;
 bool LEDs[NO_OF_LEDS];
-char promotionPieces = { 'D', 'T', 'L', 'S' };
+char promotionPieces[4] = { 'D', 'T', 'L', 'S' };
 int promotionCounter = 0;
 static xQueueHandle gpio_evt_queue = NULL;
 static const char* TAG = "countdown";
@@ -55,11 +55,11 @@ void countdown_init(){
     );
 
     xTaskCreate(
-        blinkLED,
+        blinkLED_task,
         "blinkLED",
         STACK_SIZE,
         NULL,
-        ESP_TASK_PRIO_MAX - 2;
+        ESP_TASK_PRIO_MAX - 2,
         NULL
     );
 
@@ -129,14 +129,6 @@ void IRAM_ATTR changePlayer(void* arg)
             itsPlayerWhitesTurn = !itsPlayerWhitesTurn;
             LEDs[0] = !LEDs[0];
             LEDs[1] = !LEDs[1];
-            if (itsPlayerWhitesTurn){
-                gpio_set_level(IC_RESET_PIN, 1);
-                delay_us(1);
-                gpio_set_level(IC_RESET_PIN, 0);
-            }
-            gpio_set_level(IC_CLOCK_PIN, 1);
-            delay_us(1);
-            gpio_set_level(IC_CLOCK_PIN, 0);
         }else{
             isGameStarted = false;
         }
@@ -164,7 +156,7 @@ void IRAM_ATTR promotion(void* arg)
             promotionCounter %= 4;
             LEDs[promotionCounter+2] = !LEDs[promotionCounter+2];
         }else{
-            confirm = true;
+            //confirm = true;
             completeField[pieceField[0]][pieceField[1]] = promotionPieces[promotionCounter];
             gpio_isr_handler_remove(PUSH_PIN);
             gpio_isr_handler_add(PUSH_PIN, changePlayer, (void*) PUSH_PIN);
@@ -172,14 +164,14 @@ void IRAM_ATTR promotion(void* arg)
     }
 }
 
-void blinkLED()
+void blinkLED_task()
 {
     for (int i = 0; i < NO_OF_LEDS; i++){
         gpio_set_level(IC_CLOCK_PIN, 1);
         if (LEDs[i]){
-            vTaskDelay(500);
+            vTaskDelay(500 / portTICK_PERIOD_MS);
         }else{
-            delay_us(1);
+            ets_delay_us(1);
         }
         gpio_set_level(IC_CLOCK_PIN, 0);
     }
