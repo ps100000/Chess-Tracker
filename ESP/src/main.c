@@ -5,12 +5,14 @@
 #include <esp_log.h>
 #include <esp_system.h>
 #include <esp32/spiram.h>
+#include <nvs_flash.h>
 #include <driver/uart.h>
 
 #include "countdown.h"
+#include "img_analysis.h"
 #include "storage.h"
 
-static const char* TAG = "cam";
+static const char* TAG = "main";
 
 //WROVER-KIT PIN Map
 #define CAM_PIN_PWDN    32 //power down is not used
@@ -76,6 +78,10 @@ esp_err_t camera_module_init(){
         ESP_LOGE(TAG, "Camera Init Failed");
         return err;
     }
+    sensor_t * s = esp_camera_sensor_get();
+    s->set_brightness(s, -1);
+    s->set_contrast(s, 2);
+    s->set_saturation(s, 2);
 
     return ESP_OK;
 }
@@ -140,51 +146,17 @@ esp_err_t camera_capture(){
     return ESP_OK;
 }
 
-esp_err_t bmp_httpd_handler(httpd_req_t *req){
-    camera_fb_t * fb = NULL;
-    esp_err_t res = ESP_OK;
-    int64_t fr_start = esp_timer_get_time();
-
-    fb = esp_camera_fb_get();
-    if (!fb) {
-        ESP_LOGE(TAG, "Camera capture failed");
-        httpd_resp_send_500(req);
-        return ESP_FAIL;
-    }
-
-    uint8_t * buf = NULL;
-    size_t buf_len = 0;
-    bool converted = frame2bmp(fb, &buf, &buf_len);
-    esp_camera_fb_return(fb);
-    if(!converted){
-        ESP_LOGE(TAG, "BMP conversion failed");
-        httpd_resp_send_500(req);
-        return ESP_FAIL;
-    }
-
-    res = httpd_resp_set_type(req, "image/x-windows-bmp")
-       || httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.bmp")
-       || httpd_resp_send(req, (const char *)buf, buf_len);
-    free(buf);
-    int64_t fr_end = esp_timer_get_time();
-    ESP_LOGI(TAG, "BMP: %uKB %ums", (uint32_t)(buf_len/1024), (uint32_t)((fr_end - fr_start)/1000));
-    return res;
-}
-
 void app_main() {
+    ESP_ERROR_CHECK(nvs_flash_init());
     camera_module_init();
-    //for (size_t i = 0; i < 20; i++){
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
-    
-    countdown_init();
     storage_init();
-
-    printf("%d\n", esp_get_free_heap_size());
+    img_analysis_init();
+    countdown_init();
     while(1){
         camera_capture();
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
     }
-    sensor_t * s = esp_camera_sensor_get();
+    
     // TODO change settings
 
 }

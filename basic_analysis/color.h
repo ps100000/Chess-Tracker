@@ -5,9 +5,9 @@
 #include <stdbool.h>
 
 struct image{
-    unsigned char * const buf;
-    uint16_t width;
-    uint16_t height;
+    unsigned char * buf;
+    unsigned int width;
+    unsigned int height;
 };
 typedef struct image image_t;
 
