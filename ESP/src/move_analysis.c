@@ -2,16 +2,16 @@
 #include <memory.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include "countdown.h"
 #include "move_analysis.h"
 #include "storage.h"
 /*----------------------------*/
-void analyse_move(field_state_change_t state[8][8], char* logline_buf)
-{
-    /*----------locals----------*/
-    bool isPieceBeforeEmpty = false;
-    char piece = ' ', fieldLetter, temp[LOGLINE_BUF_SIZE] = "";
-    int pieceField[2] = { 0, 0 }, changes = 0;
-	static char completeField[8][8] =
+/*----------macros----------*/
+#define PUSH_PIN	16
+/*--------------------------*/
+/*----------globals----------*/
+int pieceField[2] = { 0, 0 };
+static char completeField[8][8] =
 	{
 		{'T','S','L','D','K','L','S','T'},
 		{'B','B','B','B','B','B','B','B'},
@@ -22,6 +22,13 @@ void analyse_move(field_state_change_t state[8][8], char* logline_buf)
 		{'B','B','B','B','B','B','B','B'},
 		{'T','S','L','D','K','L','S','T'}
 	};
+/*---------------------------*/
+void analyse_move(field_state_change_t state[8][8], char* logline_buf)
+{
+    /*----------locals----------*/
+    bool isPieceBeforeEmpty = false;
+    char piece = ' ', fieldLetter, temp[LOGLINE_BUF_SIZE] = "";
+    int  changes = 0;
     /*--------------------------*/
     /*----------clear buffer----------*/
     memset(logline_buf, '\0', LOGLINE_BUF_SIZE);
@@ -89,11 +96,16 @@ void analyse_move(field_state_change_t state[8][8], char* logline_buf)
 		}
 	}
 
-    if (changes >= 3)
-	{
+	if (3 == changes){
+		memcpy(logline_buf + strlen(logline_buf), "ep", 2);
+		changes = 0;
+	}else if (4 == changes){
 		memset(logline_buf, '\0', LOGLINE_BUF_SIZE);
 		changes = 0;
 		isCastling(state, logline_buf, completeField);
+	}else if (('B' == piece) && ('A' == pieceField[0]) || ('H' == pieceField[0])){
+		gpio_isr_handler_remove(PUSH_PIN);
+		gpio_isr_handler_add(PUSH_PIN, promotion, (void*) PUSH_PIN);
 	}
     
     /*----------write file----------*/
