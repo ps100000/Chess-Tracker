@@ -104,27 +104,27 @@ def create_gui(board):
     board_layout.append([sg.T('     ')] + [sg.T('{}'.format(a), pad=((40, 40), 0), font='Any 13') for a in 'abcdefgh'])
 
     # setup the controls on the right side of screen
-    board_controls = [[sg.RButton('Continue', key='Continue')],
+    board_controls = [[sg.RButton('Continue', key='Continue', pad=(10, 25))],
                     [sg.Text('Move List')],
-                    [sg.Multiline([], do_not_clear=True, autoscroll=True, size=(30, 30), key='_movelist_')],
+                    [sg.Multiline([], do_not_clear=True, autoscroll=True, size=(100, 30), key='_movelist_')],
                     [sg.Text('Boardscore')],
-                    [sg.Multiline([], do_not_clear=False, size=(30, 10), key='_score_')],
+                    [sg.Multiline([], do_not_clear=False, size=(100, 5), key='_score_')],
                     [sg.Text('best possible move from stockfish:')],
-                    [sg.Multiline([], do_not_clear=False, size=(30, 10), key='_best_move_')]
+                    [sg.Multiline([], do_not_clear=False, size=(100, 5), key='_best_move_')]
                     ]
 
     board_tab = [[sg.Column(board_layout)]]
 
     # the main window layout
-    layout = [[sg.TabGroup([[sg.Tab('Board',board_tab)]], title_color='red'),
-            sg.Column(board_controls)]]
+    layout = [[sg.TabGroup([[sg.Tab('Board',board_tab, pad=(60, 110))]], title_color='red'),
+            sg.Column(board_controls, pad=(0, 110))]]
 
 
     window = sg.Window('Chess-Tracker-GUI',
                     default_button_element_size=(12, 1),
                     auto_size_buttons=False
-                    ).Layout(layout)
-
+                    ).Layout(layout).finalize()
+    window.maximize()
     return psg_board, window
 
 def make_move_gui(move_str, psg_board, window, piece=''):
@@ -233,7 +233,7 @@ def make_move(psg_board, window, move_str, line, engine):
     window.FindElement('_best_move_').Update(f'{best_move} with a analyzed depth of {depth}.', append=True)
 
     if (board.is_checkmate()):
-        sg.Popup('Checkmate!', board.result(), '. Thank you for playing')
+        sg.Popup('Checkmate!', board.result(), 'Thank you for playing', title='Game Over!')
         engine.quit()
         sys.exit()
 
@@ -252,13 +252,13 @@ if __name__ == '__main__':
         sys.exit()
 
     board = chess.Board()
-    LOG.debug(f'START\n{board}\n\n')
-    filename = sg.PopupGetFile('\n'.join(('To begin, set location of AI EXE file',
-                                          'If you have not done so already, download the engine',
-                                          'Download the StockFish Chess engine at: https://stockfishchess.org/download/')),
-                               file_types=(('Chess AI Engine EXE File', '*.exe'),))
-    engine = chess.engine.SimpleEngine.popen_uci(filename)
-    # engine = chess.engine.SimpleEngine.popen_uci('C:/Users/Gerst/Desktop/Schulprojekt/stockfish-11-win/stockfish-11-win/Windows/stockfish_20011801_x64')
+    # LOG.debug(f'START\n{board}\n\n')
+    # filename = sg.PopupGetFile('\n'.join(('To begin, set location of AI EXE file',
+    #                                       'If you have not done so already, download the engine',
+    #                                       'Download the StockFish Chess engine at: https://stockfishchess.org/download/')),
+    #                            file_types=(('Chess AI Engine EXE File', '*.exe'),))
+    # engine = chess.engine.SimpleEngine.popen_uci(filename)
+    engine = chess.engine.SimpleEngine.popen_uci('C:/Users/Gerst/Desktop/Schulprojekt/stockfish-11-win/stockfish-11-win/Windows/stockfish_20011801_x64')
 
     contents = open(sys.argv[1], 'r').read()
     psg_board, window = create_gui(board)
