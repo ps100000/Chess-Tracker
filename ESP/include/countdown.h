@@ -4,5 +4,7 @@
 void countdown_init();
 void countdown();
 void changePlayer();
+void promotion();
+void BlinkLED();
 /*-----------------------------*/
 #endif
