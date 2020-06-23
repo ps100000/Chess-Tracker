@@ -68,6 +68,14 @@ def render_square(image, key, location):
         color = '#F0D9B5'
     return sg.Button('', image_filename=image, size=(1, 1), button_color=('white', color), pad=(0, 0), key=key, focus=False)
 
+def read_window_break_if_closed(engine):
+    button, value = window.Read()
+    if button == sg.WIN_CLOSED:
+        # if user closes window
+        engine.quit()
+        sys.exit()
+    return button, value
+
 def redraw_board(window, board):
     for i in range(8):
         for j in range(8):
@@ -112,51 +120,125 @@ def create_gui(board):
             sg.Column(board_controls)]]
 
 
-    window = sg.Window('Chess',
+    window = sg.Window('Chess-Tracker-GUI',
                     default_button_element_size=(12, 1),
                     auto_size_buttons=False
                     ).Layout(layout)
 
     return psg_board, window
 
-def make_move(psg_board, window, move_str, line):
+def make_move_gui(move_str, psg_board, window, piece=''):
     from_col = ord(move_str[0]) - ord('a')
     from_row = 8 - int(move_str[1])
     to_col = ord(move_str[2]) - ord('a')
     to_row = 8 - int(move_str[3])
 
-    move = chess.Move.from_uci(move_str)
-
-    if not board.is_legal(move):
-        sg.Popup(f'ERROR: {line} is not a legal move.\n')
-        sys.exit()
-
-    board.push(move)
-
-    piece = psg_board[from_row][from_col]
+    if not piece:
+       piece = psg_board[from_row][from_col]
     psg_board[from_row][from_col] = BLANK
     psg_board[to_row][to_col] = piece
     redraw_board(window, psg_board)
 
-    try:
-        analyzed_score = engine.analyse(board, chess.engine.Limit(time=0.2))
-        score = analyzed_score.get('score')
-        depth = analyzed_score.get('depth')
-        window.FindElement('_score_').Update(f'Score of your board is {score} with a analyzed depth of {depth}.', append=True)
-        window.FindElement('_movelist_').Update(line + '\n', append=True)
+def castling_short(move_str, psg_board, window):
+    if board.turn:
+        move_str = 'e1h1'
+        make_move_gui('e1g1', psg_board, window)
+        make_move_gui('h1f1', psg_board, window)
+    else:
+        move_str = 'e8h8'
+        make_move_gui('e8g8', psg_board, window)
+        make_move_gui('h8f8', psg_board, window)
+    return move_str
 
-    except:
+def castling_long(move_str, psg_board, window):
+    if board.turn:
+        move_str = 'e1a1'
+        make_move_gui('e1c1', psg_board, window)
+        make_move_gui('a1d1', psg_board, window)
+    else:
+        move_str = 'e8a8'
+        make_move_gui('e8c8', psg_board, window)
+        make_move_gui('a8d8', psg_board, window)
+    return move_str
+
+def promotion(move_str, psg_board, window):
+    wished_piece = move_str[5]
+    if wished_piece == 'D':
+        move_str = move_str[0:4] + 'q'
+        if board.turn:
+            make_move_gui('move_str', psg_board, window, piece=QUEENW)
+        else:
+            make_move_gui('move_str', psg_board, window, piece=QUEENB)
+    elif wished_piece == 'S':
+        move_str = move_str[0:4] + 'k'
+        if board.turn:
+            make_move_gui('move_str', psg_board, window, piece=KNIGHTW)
+        else:
+            make_move_gui('move_str', psg_board, window, piece=KNIGHTB)
+    elif wished_piece == 'T':
+        move_str = move_str[0:4] + 'r'
+        if board.turn:
+            make_move_gui('move_str', psg_board, window, piece=ROOKW)
+        else:
+            make_move_gui('move_str', psg_board, window, piece=ROOKB)
+    elif wished_piece == 'L':
+        move_str = move_str[0:4] + 'b'
+        if board.turn:
+            make_move_gui('move_str', psg_board, window, piece=BISHOPW)
+        else:
+            make_move_gui('move_str', psg_board, window, piece=BISHOPB)
+    return move_str
+
+def make_move(psg_board, window, move_str, line, engine):
+    if move_str == '0-0':
+        move_str = castling_short(move_str, psg_board, window)
+    elif move_str == '0-0-0':
+        move_str = castling_long(move_str, psg_board, window)
+    # en passante
+    elif 'ep' in move_str:
+        if board.turn:
+            move_str = move_str[0:4]
+            enemy_pawn = move_str[2] + str(int(move_str[3]) - 1)
+            make_move_gui(move_str[0:2] + enemy_pawn, psg_board, window)
+            make_move_gui(enemy_pawn + move_str[2:4], psg_board, window)
+        else:
+            move_str = move_str[0:4]
+            enemy_pawn = move_str[2] + str(int(move_str[3]) + 1)
+            make_move_gui(move_str[0:2] + enemy_pawn, psg_board, window)
+            make_move_gui(enemy_pawn + move_str[2:4], psg_board, window)
+    elif '=' in move_str:
+        move_str = promotion(move_str, psg_board, window)
+    else:
+        make_move_gui(move_str, psg_board, window)
+
+    move = chess.Move.from_uci(move_str)
+
+    if not (board.is_legal(move) != board.is_castling(move)):
+        if board.turn:
+            sg.Popup(f'ERROR: {line} is not a legal move from white.\n')
+        else:
+            sg.Popup(f'ERROR: {line} is not a legal move from black.\n')
+        engine.quit()
         sys.exit()
+
+    board.push(move)
+
+    analyzed_score = engine.analyse(board, chess.engine.Limit(time=0.2))
+    score = analyzed_score.get('score')
+    depth = analyzed_score.get('depth')
+    window.FindElement('_score_').Update(f'Score of your board is {score} with a analyzed depth of {depth}.', append=True)
+    window.FindElement('_movelist_').Update(line + '\n', append=True)
 
     best_move = engine.play(board, chess.engine.Limit(time=0.2)).move
     window.FindElement('_best_move_').Update(f'{best_move} with a analyzed depth of {depth}.', append=True)
 
+    if (board.is_checkmate()):
+        sg.Popup('Checkmate!', board.result(), '. Thank you for playing')
+        engine.quit()
+        sys.exit()
+
     if (board.is_check()):
         sg.Popup('Check')
-
-    if (board.is_checkmate()):
-        sg.Popup('Checkmate!', board.result, 'Thank you for playing')
-        sys.exit()
 
 if __name__ == '__main__':
 
@@ -176,19 +258,21 @@ if __name__ == '__main__':
                                           'Download the StockFish Chess engine at: https://stockfishchess.org/download/')),
                                file_types=(('Chess AI Engine EXE File', '*.exe'),))
     engine = chess.engine.SimpleEngine.popen_uci(filename)
+    # engine = chess.engine.SimpleEngine.popen_uci('C:/Users/Gerst/Desktop/Schulprojekt/stockfish-11-win/stockfish-11-win/Windows/stockfish_20011801_x64')
 
     contents = open(sys.argv[1], 'r').read()
     psg_board, window = create_gui(board)
-    window.Read()
-
+    read_window_break_if_closed(engine)
     for line in re.findall(r'^(.*)$', contents, re.MULTILINE):
+        regex_possible_moves = re.findall(r'(?:\D?(\D\d).(\D\d)\s?(ep)?(=[DSTL])?|(0-0))', line)
         # gives a uci chess string, eg. c2c4, regex gives tuple(c2)(c4)
-        move = ''.join(re.findall(r'\D?(\D\d).(\D\d)', line)[0])
-        make_move(psg_board, window, move, line)
+        move = ''.join(regex_possible_moves[0])
+        # results in a string instead of tuple
+        make_move(psg_board, window, move, line, engine)
         LOG.debug(f'{board}\n')
 
         while True:
-            button, value = window.Read()
+            button, value = read_window_break_if_closed(engine)
             if button == 'Continue':
                 break
             else:
